@@ -15,7 +15,7 @@ jobs:
   publish:
     needs: test
     runs-on: ubuntu-latest
-    # PyPI Trusted Publishing 에 등록한 environment 이름과 같아야 한다.
+    # Must match the environment name registered for PyPI Trusted Publishing.
     environment: pypi
     permissions:
       id-token: write

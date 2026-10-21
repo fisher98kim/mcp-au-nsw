@@ -1,10 +1,10 @@
-"""API.NSW 공통 HTTP 클라이언트.
+"""Shared HTTP client for API.NSW.
 
-API.NSW(api.onegov.nsw.gov.au)의 모든 API는 같은 방식으로 인증한다:
-1. API Key/Secret 으로 OAuth client_credentials 토큰을 발급받는다 (약 12시간 유효).
-2. 매 요청마다 Bearer 토큰 + apikey + transactionid + requesttimestamp 헤더를 보낸다.
+Every API on API.NSW (api.onegov.nsw.gov.au) authenticates the same way:
+1. Exchange the API key/secret for an OAuth client_credentials token (valid ~12 hours).
+2. Send the Bearer token + apikey + transactionid + requesttimestamp headers on every request.
 
-앱 하나에 API 상품 하나만 붙일 수 있으므로, API마다 별도의 클라이언트(키 쌍)를 만든다.
+An app can only have one API product, so each API gets its own client (key pair).
 """
 
 from __future__ import annotations
@@ -20,12 +20,12 @@ import httpx
 BASE_URL = "https://api.onegov.nsw.gov.au"
 TOKEN_PATH = "/oauth/client_credential/accesstoken"
 
-# 토큰 만료 직전에 요청이 실패하지 않도록 이만큼 일찍 갱신한다.
+# Refresh this early so requests don't fail right before the token expires.
 TOKEN_REFRESH_MARGIN_SECONDS = 300
 
 
 class ApiNswError(Exception):
-    """API.NSW 호출 실패. 메시지는 LLM/사용자에게 그대로 보여줄 수 있는 형태로 만든다."""
+    """API.NSW call failed. Messages are written to be shown as-is to the LLM/user."""
 
 
 class ApiNswClient:
@@ -89,7 +89,7 @@ class ApiNswClient:
         params: dict[str, Any] | None = None,
         json: Any = None,
     ) -> Any:
-        """API를 호출하고 JSON 응답을 돌려준다. 401이면 토큰을 한 번 갱신해서 재시도한다."""
+        """Call the API and return the JSON response. On 401, refresh the token and retry once."""
         for attempt in range(2):
             token = await self._get_token(force_refresh=attempt > 0)
             try:
@@ -105,7 +105,7 @@ class ApiNswClient:
         data = _safe_json(resp)
         if resp.status_code >= 400:
             raise ApiNswError(_describe_error(resp.status_code, data))
-        # 일부 API는 HTTP 200 으로도 errorDetails 를 돌려준다.
+        # Some APIs return errorDetails with HTTP 200.
         if isinstance(data, dict) and data.get("errorDetails") and len(data) == 1:
             raise ApiNswError(_describe_error(resp.status_code, data))
         return data

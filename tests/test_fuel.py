@@ -21,3 +21,11 @@ def test_resolve_by_postcode():
 def test_unknown_location():
     with pytest.raises(ToolError, match="Atlantis"):
         _resolve_location(STATIONS, "Atlantis")
+
+
+def test_format_time_normalises_both_api_formats():
+    from mcp_au_nsw.fuel.server import _format_time
+
+    assert _format_time("19/10/2026 23:34:37") == "2026-10-19 23:34"
+    assert _format_time("2026-10-20 04:22:54") == "2026-10-20 04:22"
+    assert _format_time(None) is None

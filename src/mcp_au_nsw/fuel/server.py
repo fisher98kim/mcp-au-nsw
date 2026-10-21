@@ -1,8 +1,8 @@
-"""NSW/TAS 실시간 유가 MCP 서버 (API.NSW Fuel API v2).
+"""Live NSW/TAS fuel prices MCP server (API.NSW Fuel API v2).
 
-필요한 환경변수: NSW_FUEL_API_KEY, NSW_FUEL_API_SECRET
-무료 플랜은 월 2500건이라, 참조 데이터(연료 종류/주유소 목록)는 하루 동안 캐싱해서
-주유소 검색과 지명 → 좌표 변환은 API 호출 없이 처리한다.
+Required environment variables: NSW_FUEL_API_KEY, NSW_FUEL_API_SECRET
+Station search and suburb-to-coordinate lookups fetch the reference data (fuel types, station list)
+and filter it locally, so each of those calls uses one API call from the monthly quota.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-import time
+from datetime import datetime
 from typing import Any, Literal
 
 from mcp.server.mcpserver import MCPServer
@@ -23,7 +23,6 @@ State = Literal["NSW", "TAS"]
 
 REF_DATA_PATH = "/FuelCheckRefData/v2/fuel/lovs"
 PRICES_PATH = "/FuelPriceCheck/v2/fuel/prices"
-REF_DATA_TTL_SECONDS = 24 * 60 * 60
 
 # "307-313 Ocean Beach Road, UMINA BEACH NSW 2257" → ("UMINA BEACH", "2257")
 _ADDRESS_RE = re.compile(r",\s*([^,]+?)\s+(?:NSW|TAS)\s+(\d{4})\s*$", re.IGNORECASE)
@@ -40,7 +39,6 @@ mcp = MCPServer(
 )
 
 _client: ApiNswClient | None = None
-_ref_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 def _get_client() -> ApiNswClient:
@@ -51,7 +49,8 @@ def _get_client() -> ApiNswClient:
         if not key or not secret:
             raise ToolError(
                 "NSW_FUEL_API_KEY / NSW_FUEL_API_SECRET environment variables are not set. "
-                "Create an app with the Fuel API at https://api.nsw.gov.au to get a key."
+                "Register at https://api.nsw.gov.au/Account/Register, then subscribe to the Fuel API at "
+                "https://api.nsw.gov.au/Product/Index/22 to get a key and secret."
             )
         _client = ApiNswClient(key, secret)
     return _client
@@ -65,16 +64,27 @@ async def _call(method: str, path: str, **kwargs: Any) -> Any:
 
 
 async def _ref_data(state: State) -> dict[str, Any]:
-    cached = _ref_cache.get(state)
-    if cached and time.monotonic() - cached[0] < REF_DATA_TTL_SECONDS:
-        return cached[1]
-    data = await _call("GET", REF_DATA_PATH, params={"states": state})
-    _ref_cache[state] = (time.monotonic(), data)
-    return data
+    return await _call("GET", REF_DATA_PATH, params={"states": state})
 
 
 def _items(data: dict[str, Any], key: str) -> list[dict[str, Any]]:
     return (data.get(key) or {}).get("items") or []
+
+
+def _format_time(value: str | None) -> str | None:
+    """Normalise the API's mixed timestamp formats to 'YYYY-MM-DD HH:MM'.
+
+    Station prices use '19/10/2026 23:34:37', nearby prices use '2026-10-20 04:22:54'.
+    Both are already Sydney local time.
+    """
+    if not value:
+        return None
+    for fmt in ("%d/%m/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(value, fmt).strftime("%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+    return value
 
 
 def _station_summary(s: dict[str, Any]) -> dict[str, Any]:
@@ -91,7 +101,7 @@ def _station_summary(s: dict[str, Any]) -> dict[str, Any]:
 
 
 def _resolve_location(stations: list[dict[str, Any]], location: str) -> tuple[float, float]:
-    """교외명(suburb) 또는 우편번호를, 그 지역 주유소들의 평균 좌표로 바꾼다."""
+    """Turn a suburb or postcode into the average coordinates of the stations in it."""
     wanted = location.strip().upper()
     coords = []
     for s in stations:
@@ -139,7 +149,7 @@ async def get_station_prices(station_code: str, state: State = "NSW") -> list[di
     """Current prices (cents/L) for every fuel type at one station."""
     data = await _call("GET", f"{PRICES_PATH}/station/{station_code}", params={"states": state})
     return [
-        {"fuel_type": p.get("fueltype"), "price": p.get("price"), "last_updated": p.get("lastupdated")}
+        {"fuel_type": p.get("fueltype"), "price": p.get("price"), "last_updated": _format_time(p.get("lastupdated"))}
         for p in data.get("prices") or []
     ]
 
@@ -192,7 +202,7 @@ async def find_fuel_prices(
                 "distance_km": loc.get("distance"),
                 "fuel_type": p.get("fueltype"),
                 "price": p.get("price"),
-                "last_updated": p.get("lastupdated"),
+                "last_updated": _format_time(p.get("lastupdated")),
             }
         )
     sort_key = "price" if sort_by == "price" else "distance_km"
@@ -201,6 +211,6 @@ async def find_fuel_prices(
 
 
 def run() -> None:
-    # httpx 가 요청마다 INFO 로그를 남겨서 MCP 클라이언트 로그가 지저분해진다.
+    # httpx logs every request at INFO, which clutters MCP client logs.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     mcp.run()
