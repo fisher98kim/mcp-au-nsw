@@ -1,6 +1,6 @@
 [project]
 name = "mcp-au-nsw"
-version = "0.1.0"
+version = "0.2.0"
 description = "MCP servers for NSW Government APIs (api.nsw.gov.au)"
 authors = [
     { name = "fisher98kim", email = "fisher98kim@gmail.com" }

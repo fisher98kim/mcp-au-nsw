@@ -5,6 +5,7 @@ Never guess: if several candidates match about equally well, raise with the cand
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -26,6 +27,15 @@ _COORD_RE = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$")
 def parse_coords(value: str) -> tuple[float, float] | None:
     m = _COORD_RE.match(value)
     return (float(m.group(1)), float(m.group(2))) if m else None
+
+
+def distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance (haversine)."""
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = p2 - p1, math.radians(lng2 - lng1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
 
 
 def best_location(locations: list[dict[str, Any]]) -> dict[str, Any] | None:

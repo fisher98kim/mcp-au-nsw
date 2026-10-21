@@ -1,9 +1,9 @@
 import pytest
 
+from mcp_au_nsw.core.places import distance_km
 from mcp_au_nsw.roads.server import (
     _describe_period,
     _describe_road,
-    _distance_km,
     _from_epoch_ms,
     _hazard_summary,
     _route_summary,
@@ -42,7 +42,7 @@ def test_describe_period():
 
 def test_distance_km():
     # Central Station to Circular Quay is about 2.6 km
-    assert _distance_km(-33.8840, 151.2062, -33.8613, 151.2108) == pytest.approx(2.56, abs=0.1)
+    assert distance_km(-33.8840, 151.2062, -33.8613, 151.2108) == pytest.approx(2.56, abs=0.1)
 
 
 def test_hazard_summary_reads_geojson_lng_lat_order():

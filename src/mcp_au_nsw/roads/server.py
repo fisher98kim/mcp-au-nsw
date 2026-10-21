@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import html
 import logging
-import math
 import re
 from datetime import datetime
 from typing import Any, Literal
@@ -20,6 +19,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
 from mcp_au_nsw.core import ApiNswError, TfnswClient, client_from_env, resolve_place
+from mcp_au_nsw.core.places import distance_km
 
 SYDNEY = ZoneInfo("Australia/Sydney")
 HAZARDS_PATH = "/v1/live/hazards"
@@ -90,15 +90,6 @@ def _strip_html(value: str | None) -> str:
         return ""
     text = re.sub(r"<[^>]+>", " ", value)
     return " ".join(html.unescape(text).split())
-
-
-def _distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    """Great-circle distance (haversine)."""
-    r = 6371.0
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dp, dl = p2 - p1, math.radians(lng2 - lng1)
-    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * r * math.asin(math.sqrt(a))
 
 
 def _describe_road(road: dict[str, Any]) -> str:
@@ -202,7 +193,7 @@ async def get_traffic_hazards(
             if center:
                 if summary["latitude"] is None or summary["longitude"] is None:
                     continue
-                dist = _distance_km(center[0], center[1], summary["latitude"], summary["longitude"])
+                dist = distance_km(center[0], center[1], summary["latitude"], summary["longitude"])
                 if dist > radius_km:
                     continue
                 summary["distance_km"] = round(dist, 1)

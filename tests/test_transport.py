@@ -164,3 +164,43 @@ async def test_alerts_reject_unknown_line_instead_of_returning_everything(monkey
 async def test_alerts_valid_line_with_no_alerts_is_empty(monkeypatch):
     _fake_alerts(monkeypatch, [])
     assert await server.get_service_alerts(line="392X") == []
+
+
+def test_car_park_availability_clamps_overfull_counts():
+    from mcp_au_nsw.transport.server import _availability, _occupied
+
+    assert _occupied({"total": "238", "transients": "238"}) == 238
+    assert _occupied({"total": None, "transients": "100", "monthlies": "5"}) == 105
+    assert _occupied({}) is None
+    assert _availability(228, 238) == {"capacity": 228, "occupied": 238, "available": 0, "percent_full": 100}
+    assert _availability(123, None)["available"] is None
+
+
+def _reading(ts, occupied, spots="100"):
+    return {"facility_name": "Park&Ride - Test", "spots": spots, "occupancy": {"total": str(occupied)}, "MessageDate": ts}
+
+
+async def test_car_park_history_summarises_day(monkeypatch):
+    readings = [
+        _reading("2026-10-21T06:10:00", 60),
+        _reading("2026-10-21T06:50:00", 90),
+        _reading("2026-10-21T07:20:00", 100),
+        _reading("2026-10-21T18:30:00", 40),
+    ]
+
+    async def fake(path, **params):
+        fake.params = params
+        return readings
+
+    monkeypatch.setattr(server, "_get", fake)
+    h = await server.get_car_park_history("26", "2026-10-21")
+    assert fake.params == {"facility": "26", "eventdate": "2026-10-21"}
+    assert h["first_full_at"] == "07:20"
+    assert h["peak"]["time"] == "07:20" and h["peak"]["occupied"] == 100
+    assert [x["hour"] for x in h["hourly"]] == ["06:00", "07:00", "18:00"]
+    assert h["hourly"][0]["occupied"] == 90  # last reading in the hour
+
+
+async def test_car_park_history_rejects_bad_date():
+    with pytest.raises(ToolError, match="YYYY-MM-DD"):
+        await server.get_car_park_history("26", "21/10/2026")

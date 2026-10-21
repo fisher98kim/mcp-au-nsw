@@ -5,7 +5,7 @@ Ask Claude (or any MCP client) things like *"How do I get from UNSW to Circular 
 
 | Server | What it covers | Data source | Key |
 |---|---|---|---|
-| `transport` | Trip planning, real-time departures, service alerts (trains, metro, buses, light rail, ferries) | [TfNSW Open Data Hub](https://opendata.transport.nsw.gov.au) | TfNSW key |
+| `transport` | Trip planning, real-time departures, service alerts (trains, metro, buses, light rail, ferries), Park&Ride car parks | [TfNSW Open Data Hub](https://opendata.transport.nsw.gov.au) | TfNSW key |
 | `roads` | Live traffic hazards (crashes, roadworks, floods, fires, events) and toll costs | [TfNSW Open Data Hub](https://opendata.transport.nsw.gov.au) | TfNSW key (same one) |
 | `fuel` | Live fuel prices for NSW & TAS | [API.NSW](https://api.nsw.gov.au) | API.NSW key |
 
@@ -89,6 +89,8 @@ claude mcp add nsw-fuel      -e NSW_FUEL_API_KEY=your-key -e NSW_FUEL_API_SECRET
 | `get_departures` | Next departures from a station or stop, with real-time delays and platforms |
 | `get_service_alerts` | Current disruptions and trackwork, filtered by mode, line (`T1`, `L2`, `333`, ...) or stop |
 | `find_stops` | Search stations, stops and wharves by name; returns stop IDs and modes |
+| `get_car_park_availability` | Live free spaces at Transport Park&Ride car parks, by name or distance from a place |
+| `get_car_park_history` | How full a Park&Ride car park was through a given day: hourly occupancy, peak, and when it filled up |
 
 Example prompts:
 
@@ -96,6 +98,8 @@ Example prompts:
 - "I need to be at Manly Wharf by 6pm. When should I leave Martin Place?"
 - "When's the next train from Town Hall?"
 - "Any problems on the T1 today?"
+- "Are there any spaces left at the Tallawong Park&Ride?"
+- "What time did the Tallawong P1 car park fill up yesterday?"
 
 ## `roads` server
 

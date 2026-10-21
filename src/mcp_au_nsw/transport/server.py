@@ -17,10 +17,11 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
 from mcp_au_nsw.core import ApiNswError, TfnswClient, client_from_env, resolve_place
-from mcp_au_nsw.core.places import TP_PARAMS
+from mcp_au_nsw.core.places import TP_PARAMS, distance_km
 
 SYDNEY = ZoneInfo("Australia/Sydney")
 TP_PATH = "/v1/tp"
+CARPARK_PATH = "/v1/carpark"
 
 # Trip Planner product class codes -> readable names
 MODE_NAMES = {
@@ -45,7 +46,8 @@ mcp = MCPServer(
         "NSW public transport (trains, metro, buses, light rail, ferries) from the Transport for NSW trip planner. "
         "Places can be given as names (stations, stops, addresses, landmarks), stop IDs, or 'lat,lng'. "
         "All times are Sydney local time. Use plan_trip for A-to-B journeys, get_departures for the next "
-        "services from a stop, and get_service_alerts for disruptions and trackwork."
+        "services from a stop, get_service_alerts for disruptions and trackwork, and get_car_park_availability / "
+        "get_car_park_history for Transport Park&Ride car parks."
     ),
 )
 
@@ -60,6 +62,13 @@ def _get_client() -> TfnswClient:
         except ApiNswError as e:
             raise ToolError(str(e)) from e
     return _client
+
+
+async def _get(path: str, **params: Any) -> Any:
+    try:
+        return await _get_client().get(path, params or None)
+    except ApiNswError as e:
+        raise ToolError(str(e)) from e
 
 
 async def _tp(endpoint: str, **params: Any) -> dict[str, Any]:
@@ -336,6 +345,138 @@ def _alert_summary(info: dict[str, Any]) -> dict[str, Any]:
         "active_until": None if validity.get("isOpenEnd") else _local(validity.get("to")),
         "details": text[:600],
         "url": link.get("url"),
+    }
+
+
+def _int(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _occupied(occupancy: dict[str, Any]) -> int | None:
+    """Cars parked. `total` is the count; some car parks only report transients and monthlies."""
+    total = _int(occupancy.get("total"))
+    if total is not None:
+        return total
+    parts = [_int(occupancy.get("transients")), _int(occupancy.get("monthlies"))]
+    return sum(p for p in parts if p is not None) if any(p is not None for p in parts) else None
+
+
+def _availability(capacity: int | None, occupied: int | None) -> dict[str, Any]:
+    # Counts can exceed capacity (e.g. 238 cars in 228 spots), so clamp free spots at zero.
+    if capacity is None or occupied is None:
+        return {"capacity": capacity, "occupied": occupied, "available": None, "percent_full": None}
+    return {
+        "capacity": capacity,
+        "occupied": occupied,
+        "available": max(capacity - occupied, 0),
+        "percent_full": round(min(occupied / capacity, 1) * 100) if capacity else None,
+    }
+
+
+def _car_park_time(value: str | None) -> str | None:
+    """'2026-10-22T09:33:51' (already Sydney local time) -> '2026-10-22 09:33'."""
+    if not value:
+        return None
+    return datetime.fromisoformat(value).strftime("%Y-%m-%d %H:%M")
+
+
+def _car_park_summary(cp: dict[str, Any]) -> dict[str, Any]:
+    loc = cp.get("location") or {}
+    summary: dict[str, Any] = {
+        "facility_id": cp.get("facility_id"),
+        "name": cp.get("facility_name"),
+        "suburb": loc.get("suburb"),
+        "address": loc.get("address"),
+        **_availability(_int(cp.get("spots")), _occupied(cp.get("occupancy") or {})),
+        "updated": _car_park_time(cp.get("MessageDate")),
+        "latitude": float(loc["latitude"]) if loc.get("latitude") else None,
+        "longitude": float(loc["longitude"]) if loc.get("longitude") else None,
+    }
+    zones = cp.get("zones") or []
+    if len(zones) > 1:
+        summary["zones"] = [
+            {"name": z.get("zone_name"), **_availability(_int(z.get("spots")), _occupied(z.get("occupancy") or {}))}
+            for z in zones
+        ]
+    return summary
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def get_car_park_availability(
+    query: str | None = None,
+    near: str | None = None,
+    radius_km: float = 10,
+    limit: int = 10,
+) -> dict[str, Any]:
+    """Live free spaces at Transport Park&Ride car parks (about 40 car parks at stations across Sydney).
+
+    query: text matched against car park name and suburb (e.g. "Tallawong", "Penrith"). near: a place name,
+    address or 'lat,lng'; only car parks within radius_km are returned, nearest first. With neither, all are listed.
+    """
+    center = None
+    if near:
+        place = await _resolve(near)
+        center = (place["latitude"], place["longitude"], place["label"])
+
+    wanted = query.strip().lower() if query else None
+    car_parks = []
+    for cp in await _get(f"{CARPARK_PATH}/full-list") or []:
+        summary = _car_park_summary(cp)
+        if wanted and wanted not in f"{summary['name']} {summary['suburb']}".lower():
+            continue
+        if center:
+            if summary["latitude"] is None or summary["longitude"] is None:
+                continue
+            dist = distance_km(center[0], center[1], summary["latitude"], summary["longitude"])
+            if dist > radius_km:
+                continue
+            summary["distance_km"] = round(dist, 1)
+        car_parks.append(summary)
+
+    if center:
+        car_parks.sort(key=lambda c: c["distance_km"])
+    else:
+        car_parks.sort(key=lambda c: c["name"] or "")
+    return {"near": center[2] if center else None, "total_matched": len(car_parks), "car_parks": car_parks[:limit]}
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def get_car_park_history(facility_id: str, date: str) -> dict[str, Any]:
+    """How full a Park&Ride car park was through one day: hourly occupancy, the peak, and when it first filled up.
+
+    facility_id: from get_car_park_availability. date: 'YYYY-MM-DD'. Useful for "what time does it usually fill up?".
+    """
+    try:
+        day = datetime.strptime(date.strip(), "%Y-%m-%d").strftime("%Y-%m-%d")
+    except ValueError as e:
+        raise ToolError("date must be 'YYYY-MM-DD'.") from e
+    readings = await _get(f"{CARPARK_PATH}/history", facility=facility_id, eventdate=day) or []
+    if not readings:
+        raise ToolError(f"No history for car park {facility_id} on {day}. Check the facility_id and date.")
+
+    points = []
+    for r in readings:
+        ts = _car_park_time(r.get("MessageDate"))
+        if ts:
+            points.append((ts, _availability(_int(r.get("spots")), _occupied(r.get("occupancy") or {}))))
+    points.sort(key=lambda p: p[0])
+
+    hourly: dict[str, dict[str, Any]] = {}
+    for ts, a in points:
+        hourly[ts[11:13] + ":00"] = a  # last reading in each hour
+    first_full = next((ts for ts, a in points if a["available"] == 0), None)
+    peak_ts, peak = max(points, key=lambda p: p[1]["occupied"] or 0)
+    return {
+        "facility_id": facility_id,
+        "name": readings[0].get("facility_name"),
+        "date": day,
+        "capacity": peak["capacity"],
+        "first_full_at": first_full[11:16] if first_full else None,
+        "peak": {"time": peak_ts[11:16], **peak},
+        "hourly": [{"hour": h, **a} for h, a in hourly.items()],
     }
 
 
