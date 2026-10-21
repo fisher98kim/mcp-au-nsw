@@ -1,0 +1,41 @@
+[project]
+name = "mcp-au-nsw"
+version = "0.1.0"
+description = "MCP servers for NSW Government APIs (api.nsw.gov.au)"
+authors = [
+    { name = "fisher98kim", email = "fisher98kim@gmail.com" }
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["mcp", "nsw", "australia", "fuel", "api.nsw"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp>=2.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/fisher98kim/mcp-au-nsw"
+Issues = "https://github.com/fisher98kim/mcp-au-nsw/issues"
+
+[project.scripts]
+mcp-au-nsw = "mcp_au_nsw:main"
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "respx>=0.23.1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
