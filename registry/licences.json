@@ -1,0 +1,242 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.fisher98kim/nsw-licences",
+  "title": "NSW Licences",
+  "description": "Check licences on 15 NSW public registers: trades, property, security, liquor, WHS and more.",
+  "repository": {
+    "url": "https://github.com/fisher98kim/mcp-au-nsw",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/fisher98kim/mcp-au-nsw#licences-server",
+  "version": "0.3.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "mcp-au-nsw",
+      "version": "0.3.1",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "licences",
+          "valueHint": "server"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "NSW_TRADES_API_KEY",
+          "description": "API.NSW key for the Trades register (https://api.nsw.gov.au/Product/Index/25); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_TRADES_API_SECRET",
+          "description": "API.NSW secret for the Trades register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_PROPERTY_API_KEY",
+          "description": "API.NSW key for the Property register (https://api.nsw.gov.au/Product/Index/20); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_PROPERTY_API_SECRET",
+          "description": "API.NSW secret for the Property register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_SECURITY_API_KEY",
+          "description": "API.NSW key for the Security register (https://api.nsw.gov.au/Product/Index/24); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_SECURITY_API_SECRET",
+          "description": "API.NSW secret for the Security register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_LIQUOR_API_KEY",
+          "description": "API.NSW key for the Liquor register (https://api.nsw.gov.au/Product/Index/19); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_LIQUOR_API_SECRET",
+          "description": "API.NSW secret for the Liquor register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_MOTOR_API_KEY",
+          "description": "API.NSW key for the Motor register (https://api.nsw.gov.au/Product/Index/15); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_MOTOR_API_SECRET",
+          "description": "API.NSW secret for the Motor register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_CONVEYANCER_API_KEY",
+          "description": "API.NSW key for the Conveyancer register (https://api.nsw.gov.au/Product/Index/17); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_CONVEYANCER_API_SECRET",
+          "description": "API.NSW secret for the Conveyancer register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_LOTTERIES_API_KEY",
+          "description": "API.NSW key for the Lotteries register (https://api.nsw.gov.au/Product/Index/16); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_LOTTERIES_API_SECRET",
+          "description": "API.NSW secret for the Lotteries register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_OWNER_BUILDER_API_KEY",
+          "description": "API.NSW key for the Owner Builder Permit register (https://api.nsw.gov.au/Product/Index/21); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_OWNER_BUILDER_API_SECRET",
+          "description": "API.NSW secret for the Owner Builder Permit register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_HOME_BUILDING_COMPENSATION_API_KEY",
+          "description": "API.NSW key for the Home Building Compensation register (https://api.nsw.gov.au/Product/Index/36); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_HOME_BUILDING_COMPENSATION_API_SECRET",
+          "description": "API.NSW secret for the Home Building Compensation register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_BUILDING_PRACTITIONERS_API_KEY",
+          "description": "API.NSW key for the Design and Building Practitioners register (https://api.nsw.gov.au/Product/Index/29); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_BUILDING_PRACTITIONERS_API_SECRET",
+          "description": "API.NSW secret for the Design and Building Practitioners register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_ASBESTOS_API_KEY",
+          "description": "API.NSW key for the Asbestos and Demolition register (https://api.nsw.gov.au/Product/Index/31); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_ASBESTOS_API_SECRET",
+          "description": "API.NSW secret for the Asbestos and Demolition register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_HIGH_RISK_WORK_API_KEY",
+          "description": "API.NSW key for the High Risk Work register (https://api.nsw.gov.au/Product/Index/33); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_HIGH_RISK_WORK_API_SECRET",
+          "description": "API.NSW secret for the High Risk Work register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_WHITE_CARDS_API_KEY",
+          "description": "API.NSW key for the White Cards and Traffic Control register (https://api.nsw.gov.au/Product/Index/32); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_WHITE_CARDS_API_SECRET",
+          "description": "API.NSW secret for the White Cards and Traffic Control register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_TRAINERS_API_KEY",
+          "description": "API.NSW key for the Trainers and Providers register (https://api.nsw.gov.au/Product/Index/13); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_TRAINERS_API_SECRET",
+          "description": "API.NSW secret for the Trainers and Providers register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_PHARMACIES_API_KEY",
+          "description": "API.NSW key for the Pharmacies register (https://api.nsw.gov.au/Product/Index/30); optional, register unavailable without it",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_PHARMACIES_API_SECRET",
+          "description": "API.NSW secret for the Pharmacies register",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.fisher98kim/nsw-fuel",
+  "title": "NSW Fuel",
+  "description": "Live fuel prices for service stations in NSW and Tasmania, Australia.",
+  "repository": {
+    "url": "https://github.com/fisher98kim/mcp-au-nsw",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/fisher98kim/mcp-au-nsw#fuel-server",
+  "version": "0.3.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "mcp-au-nsw",
+      "version": "0.3.1",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "fuel",
+          "valueHint": "server"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "NSW_FUEL_API_KEY",
+          "description": "API.NSW Fuel API key: https://api.nsw.gov.au/Product/Index/22",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "NSW_FUEL_API_SECRET",
+          "description": "API.NSW Fuel API secret (same app as the key)",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

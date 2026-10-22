@@ -1,0 +1,39 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.fisher98kim/nsw-roads",
+  "title": "NSW Roads",
+  "description": "NSW live traffic hazards (crashes, roadworks, floods, fires, events) and toll costs.",
+  "repository": {
+    "url": "https://github.com/fisher98kim/mcp-au-nsw",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/fisher98kim/mcp-au-nsw#roads-server",
+  "version": "0.3.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "mcp-au-nsw",
+      "version": "0.3.1",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "roads",
+          "valueHint": "server"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "NSW_TRANSPORT_API_KEY",
+          "description": "TfNSW Open Data Hub API token: https://opendata.transport.nsw.gov.au (profile -> API Tokens); same token as nsw-transport",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

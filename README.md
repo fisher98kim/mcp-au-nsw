@@ -1,5 +1,10 @@
 # mcp-au-nsw
 
+<!-- mcp-name: io.github.fisher98kim/nsw-fuel -->
+<!-- mcp-name: io.github.fisher98kim/nsw-transport -->
+<!-- mcp-name: io.github.fisher98kim/nsw-roads -->
+<!-- mcp-name: io.github.fisher98kim/nsw-licences -->
+
 [MCP](https://modelcontextprotocol.io) servers for NSW Government APIs.
 Ask Claude (or any MCP client) things like *"How do I get from UNSW to Circular Quay right now?"*, *"Any crashes on the M4?"*, *"Is electrician licence 241132C current?"* or *"Where's the cheapest diesel near Parramatta?"* and get live answers.
 
@@ -206,6 +211,13 @@ To try local changes in Claude Code:
 claude mcp add nsw-transport-dev -e NSW_TRANSPORT_API_KEY=... \
   -- uv run --directory /path/to/mcp-au-nsw mcp-au-nsw transport
 ```
+
+### Releasing
+
+1. Bump `version` in `pyproject.toml` and in every `registry/*.json` (a test checks they match).
+2. Create a GitHub Release; the workflow publishes to PyPI.
+3. Update the [MCP Registry](https://registry.modelcontextprotocol.io) entries (one per server):
+   `mcp-publisher login github`, then `mcp-publisher publish registry/<server>.json` for each file.
 
 ## License
 
