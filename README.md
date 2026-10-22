@@ -215,9 +215,8 @@ claude mcp add nsw-transport-dev -e NSW_TRANSPORT_API_KEY=... \
 ### Releasing
 
 1. Bump `version` in `pyproject.toml` and in every `registry/*.json` (a test checks they match).
-2. Create a GitHub Release; the workflow publishes to PyPI.
-3. Update the [MCP Registry](https://registry.modelcontextprotocol.io) entries (one per server):
-   `mcp-publisher login github`, then `mcp-publisher publish registry/<server>.json` for each file.
+2. Create a GitHub Release tagged `v<version>`. The workflow publishes to PyPI, then updates the
+   [MCP Registry](https://registry.modelcontextprotocol.io) entries (one per server).
 
 ## License
 

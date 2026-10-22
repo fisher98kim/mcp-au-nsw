@@ -1,16 +1,29 @@
-name: Publish to PyPI
+name: Publish to PyPI and the MCP Registry
 
 on:
   release:
     types: [published]
 
+env:
+  MCP_PUBLISHER_VERSION: v1.8.1
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
       - run: uv run pytest -q
+      # tests/test_registry.py checks registry/*.json against pyproject.toml; this checks the tag too.
+      - name: Check release tag matches pyproject version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if [ "$TAG" != "v$version" ]; then
+            echo "Release tag $TAG does not match pyproject version v$version"
+            exit 1
+          fi
 
   publish:
     needs: test
@@ -20,7 +33,31 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
       - run: uv build
       - run: uv publish
+
+  registry:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      # GitHub OIDC login grants publish rights for io.github.<repo owner>/*.
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - run: ./mcp-publisher login github-oidc
+      # The registry verifies the package on PyPI, which can take a minute to show a new release; retry until it does.
+      - name: Publish one registry entry per server
+        run: |
+          for entry in registry/*.json; do
+            for attempt in 1 2 3 4 5; do
+              ./mcp-publisher publish "$entry" && break
+              if [ "$attempt" = 5 ]; then exit 1; fi
+              sleep 30
+            done
+          done
