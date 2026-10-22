@@ -23,6 +23,12 @@ TOKEN_PATH = "/oauth/client_credential/accesstoken"
 # Refresh this early so requests don't fail right before the token expires.
 TOKEN_REFRESH_MARGIN_SECONDS = 300
 
+# Bursts of requests get "Traffic limit exceeded" (HTTP 408) or 429. It is a short-term limit,
+# separate from the monthly quota, so space requests out and retry after a pause.
+MIN_INTERVAL_SECONDS = 1.0
+RETRY_DELAYS_SECONDS = (2.0, 4.0)
+RATE_LIMIT_STATUSES = (408, 429)
+
 
 class ApiNswError(Exception):
     """API.NSW call failed. Messages are written to be shown as-is to the LLM/user."""
@@ -46,6 +52,8 @@ class ApiNswClient:
         self._token: str | None = None
         self._token_expires_at = 0.0
         self._token_lock = asyncio.Lock()
+        self._throttle_lock = asyncio.Lock()
+        self._last_request = 0.0
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -81,6 +89,17 @@ class ApiNswClient:
             "requesttimestamp": datetime.now(timezone.utc).strftime("%d/%m/%Y %I:%M:%S %p"),
         }
 
+    async def _send(self, method: str, path: str, params: dict[str, Any] | None, json: Any, token: str) -> httpx.Response:
+        async with self._throttle_lock:
+            wait = self._last_request + MIN_INTERVAL_SECONDS - time.monotonic()
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._last_request = time.monotonic()
+        try:
+            return await self._http.request(method, path, params=params, json=json, headers=self._headers(token))
+        except httpx.HTTPError as e:
+            raise ApiNswError(f"Could not connect to API.NSW: {e}") from e
+
     async def request(
         self,
         method: str,
@@ -89,16 +108,20 @@ class ApiNswClient:
         params: dict[str, Any] | None = None,
         json: Any = None,
     ) -> Any:
-        """Call the API and return the JSON response. On 401, refresh the token and retry once."""
-        for attempt in range(2):
-            token = await self._get_token(force_refresh=attempt > 0)
-            try:
-                resp = await self._http.request(
-                    method, path, params=params, json=json, headers=self._headers(token)
-                )
-            except httpx.HTTPError as e:
-                raise ApiNswError(f"Could not connect to API.NSW: {e}") from e
-            if resp.status_code == 401 and attempt == 0:
+        """Call the API and return the JSON response.
+
+        On 401, refresh the token and retry once. On a short-term rate limit, wait and retry.
+        """
+        refreshed = False
+        retries = iter(RETRY_DELAYS_SECONDS)
+        while True:
+            token = await self._get_token(force_refresh=refreshed)
+            resp = await self._send(method, path, params, json, token)
+            if resp.status_code == 401 and not refreshed:
+                refreshed = True
+                continue
+            if resp.status_code in RATE_LIMIT_STATUSES and (delay := next(retries, None)) is not None:
+                await asyncio.sleep(delay)
                 continue
             break
 
@@ -128,6 +151,9 @@ def _describe_error(status: int, data: Any) -> str:
             for d in details
         )
         return f"API.NSW error (HTTP {status}): {msgs}"
-    if status == 429:
-        return "API.NSW rate limit exceeded (the free plan allows 2500 calls/month)."
+    if status in RATE_LIMIT_STATUSES:
+        return (
+            "API.NSW rate limit exceeded. Wait a moment and try again; "
+            "if it keeps happening, the monthly quota (2500 calls on the free plan) may be used up."
+        )
     return f"API.NSW error (HTTP {status}): {str(data)[:300]}"

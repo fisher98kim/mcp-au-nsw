@@ -1,12 +1,13 @@
 # mcp-au-nsw
 
 [MCP](https://modelcontextprotocol.io) servers for NSW Government APIs.
-Ask Claude (or any MCP client) things like *"How do I get from UNSW to Circular Quay right now?"*, *"Any crashes on the M4?"* or *"Where's the cheapest diesel near Parramatta?"* and get live answers.
+Ask Claude (or any MCP client) things like *"How do I get from UNSW to Circular Quay right now?"*, *"Any crashes on the M4?"*, *"Is electrician licence 241132C current?"* or *"Where's the cheapest diesel near Parramatta?"* and get live answers.
 
 | Server | What it covers | Data source | Key |
 |---|---|---|---|
 | `transport` | Trip planning, real-time departures, service alerts (trains, metro, buses, light rail, ferries), Park&Ride car parks | [TfNSW Open Data Hub](https://opendata.transport.nsw.gov.au) | TfNSW key |
 | `roads` | Live traffic hazards (crashes, roadworks, floods, fires, events) and toll costs | [TfNSW Open Data Hub](https://opendata.transport.nsw.gov.au) | TfNSW key (same one) |
+| `licences` | Licence checks on 15 NSW public registers (tradespeople, property agents, security, liquor, pharmacies, WHS licences, ...) | [API.NSW](https://api.nsw.gov.au) | One API.NSW key per register |
 | `fuel` | Live fuel prices for NSW & TAS | [API.NSW](https://api.nsw.gov.au) | API.NSW key |
 
 Each server is a separate subcommand, so you only add the ones you need.
@@ -24,13 +25,16 @@ Each server is a separate subcommand, so you only add the ones you need.
 
 Official guide: <https://opendata.transport.nsw.gov.au/developers/userguide>
 
-**API.NSW** (for `fuel`)
+**API.NSW** (for `fuel` and `licences`)
 
 1. Register: <https://api.nsw.gov.au/Account/Register> (log in: <https://api.nsw.gov.au/Account/Login>)
-2. Open the Fuel API page and click **Subscribe**, or go to **My Apps → Add new app** and attach the **Fuel API**: <https://api.nsw.gov.au/Product/Index/22>
-   (Each app can have only one API product.)
-3. Copy the app's **API Key** and **API Secret** into `NSW_FUEL_API_KEY` and `NSW_FUEL_API_SECRET`.
-   The free plan allows 2,500 calls per month.
+2. Go to **My Apps → Add new app**: <https://api.nsw.gov.au/DeveloperApp/AppCreate>
+   and attach one API product. **Each app can have only one API product**, so create one app per API you want
+   (e.g. one for the Fuel API, one for the Trades register).
+3. Copy each app's **API Key** and **API Secret** into the matching environment variables
+   (`NSW_FUEL_API_KEY` / `NSW_FUEL_API_SECRET`, `NSW_TRADES_API_KEY` / `NSW_TRADES_API_SECRET`, ...;
+   see the [`licences` section](#licences-server) for the full list).
+   The free plan allows 2,500 calls per month per app.
 
 ### 2. Install [uv](https://docs.astral.sh/uv/) (if you don't have it)
 
@@ -46,7 +50,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 claude mcp add nsw-transport -e NSW_TRANSPORT_API_KEY=your-tfnsw-key -- uvx mcp-au-nsw transport
 claude mcp add nsw-roads     -e NSW_TRANSPORT_API_KEY=your-tfnsw-key -- uvx mcp-au-nsw roads
 claude mcp add nsw-fuel      -e NSW_FUEL_API_KEY=your-key -e NSW_FUEL_API_SECRET=your-secret -- uvx mcp-au-nsw fuel
+claude mcp add nsw-licences  -e NSW_TRADES_API_KEY=your-key -e NSW_TRADES_API_SECRET=your-secret -- uvx mcp-au-nsw licences
 ```
+
+For `licences`, pass the key pair of every register you subscribed to; registers without keys are simply unavailable.
 
 **Claude Desktop / Cursor / other clients**: add the servers you want to the MCP config file (`claude_desktop_config.json`, `.cursor/mcp.json`, etc.):
 
@@ -67,6 +74,14 @@ claude mcp add nsw-fuel      -e NSW_FUEL_API_KEY=your-key -e NSW_FUEL_API_SECRET
       "command": "uvx",
       "args": ["mcp-au-nsw", "fuel"],
       "env": { "NSW_FUEL_API_KEY": "your-key", "NSW_FUEL_API_SECRET": "your-secret" }
+    },
+    "nsw-licences": {
+      "command": "uvx",
+      "args": ["mcp-au-nsw", "licences"],
+      "env": {
+        "NSW_TRADES_API_KEY": "your-key", "NSW_TRADES_API_SECRET": "your-secret",
+        "NSW_PROPERTY_API_KEY": "your-key", "NSW_PROPERTY_API_SECRET": "your-secret"
+      }
     }
   }
 }
@@ -115,6 +130,47 @@ Example prompts:
 - "How much are the tolls from Parramatta to Sydney International Airport, and how much time do they save?"
 
 Toll amounts are estimates from Transport for NSW and may differ from what is actually charged.
+
+## `licences` server
+
+Checks licences on NSW public registers. All registers work the same way: look up a licence number, search by
+person or business name, and get the full public record.
+
+| Tool | What it does |
+|---|---|
+| `verify_licence` | Check a licence number: status (Current/Expired/...), expiry, licence type and holder |
+| `search_licences` | Find licences by person or business name (partial names work), current ones first |
+| `get_licence_details` | Full record: licence classes (what work it covers), conditions, history, premises, associated people and licences, and compliance actions (disciplinary actions, suspensions, prosecutions, public warnings, insurance claims) |
+| `list_registers` | Which registers exist, what they cover, and which are configured |
+
+| Register (`register` value) | Covers | Environment variables | Subscribe |
+|---|---|---|---|
+| `trades` | Building contractors and tradespeople | `NSW_TRADES_API_KEY`, `NSW_TRADES_API_SECRET` | [Trades API](https://api.nsw.gov.au/Product/Index/25) |
+| `property` | Real estate agents, property and strata managers | `NSW_PROPERTY_API_*` | [Property API](https://api.nsw.gov.au/Product/Index/20) |
+| `security` | Security guards and businesses | `NSW_SECURITY_API_*` | [Security API](https://api.nsw.gov.au/Product/Index/24) |
+| `liquor` | Liquor licences and premises | `NSW_LIQUOR_API_*` | [Liquor API](https://api.nsw.gov.au/Product/Index/19) |
+| `motor` | Motor dealers, repairers, recyclers | `NSW_MOTOR_API_*` | [Motor API](https://api.nsw.gov.au/Product/Index/15) |
+| `conveyancer` | Conveyancers | `NSW_CONVEYANCER_API_*` | [Conveyancer API](https://api.nsw.gov.au/Product/Index/17) |
+| `lotteries` | Trade promotion lotteries and games of chance | `NSW_LOTTERIES_API_*` | [Lotteries API](https://api.nsw.gov.au/Product/Index/16) |
+| `owner_builder` | Owner builder permits | `NSW_OWNER_BUILDER_API_*` | [Owner Builder Permit API](https://api.nsw.gov.au/Product/Index/21) |
+| `home_building_compensation` | Home building compensation certificates | `NSW_HOME_BUILDING_COMPENSATION_API_*` | [Home Building Compensation API](https://api.nsw.gov.au/Product/Index/36) |
+| `building_practitioners` | Design and building practitioners, engineers | `NSW_BUILDING_PRACTITIONERS_API_*` | [Design and Building Practitioners API](https://api.nsw.gov.au/Product/Index/29) |
+| `asbestos` | Asbestos removal and demolition licences | `NSW_ASBESTOS_API_*` | [Asbestos and Demolition](https://api.nsw.gov.au/Product/Index/31) |
+| `high_risk_work` | High risk work licences (forklifts, cranes, ...) | `NSW_HIGH_RISK_WORK_API_*` | [High Risk Work](https://api.nsw.gov.au/Product/Index/33) |
+| `white_cards` | Construction induction and traffic control cards | `NSW_WHITE_CARDS_API_*` | [White Cards](https://api.nsw.gov.au/Product/Index/32) |
+| `trainers` | Registered training organisations | `NSW_TRAINERS_API_*` | [Trainers and Providers API](https://api.nsw.gov.au/Product/Index/13) |
+| `pharmacies` | Pharmacy premises and financial interest holders | `NSW_PHARMACIES_API_*` | [Register of Pharmacies](https://api.nsw.gov.au/Product/Index/30) |
+
+`NSW_X_API_*` means `NSW_X_API_KEY` and `NSW_X_API_SECRET`.
+
+Example prompts:
+
+- "Is electrician licence 241132C current, and does it cover electrical work?"
+- "Check whether my builder, Smith Constructions, holds a current licence and has any disciplinary actions."
+- "Is this real estate agent licensed?"
+
+Records come straight from the public registers and can include the names, roles and addresses of licence holders
+and associated people.
 
 ## `fuel` server
 

@@ -9,7 +9,7 @@ requires-python = ">=3.11"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-keywords = ["mcp", "nsw", "australia", "sydney", "transport", "trip-planner", "traffic", "tolls", "fuel", "api.nsw"]
+keywords = ["mcp", "nsw", "australia", "sydney", "transport", "trip-planner", "traffic", "tolls", "fuel", "licence", "public-register", "api.nsw"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",

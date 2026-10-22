@@ -2,7 +2,7 @@
 
 import sys
 
-SERVERS = ("fuel", "transport", "roads")
+SERVERS = ("fuel", "transport", "roads", "licences")
 
 
 def main() -> None:
@@ -13,6 +13,8 @@ def main() -> None:
         from mcp_au_nsw.transport.server import run
     elif name == "roads":
         from mcp_au_nsw.roads.server import run
+    elif name == "licences":
+        from mcp_au_nsw.licences.server import run
     else:
         print(f"usage: mcp-au-nsw <{'|'.join(SERVERS)}>", file=sys.stderr)
         sys.exit(2)
